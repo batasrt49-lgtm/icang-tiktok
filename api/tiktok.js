@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     const response = await axios.post('https://leofame.com/free-tiktok-likes?api=1',
       new URLSearchParams({
         token,
-        timezone_offset: 'Asia/Jakarta',
+        timezone_offset: 'Asia/Makassar',
         free_link: url
       }).toString(),
       {
