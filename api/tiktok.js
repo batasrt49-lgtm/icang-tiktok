@@ -1,61 +1,83 @@
 // api/tiktok.js
-const axios = require('axios');
+import axios from "axios";
 
 export default async function handler(req, res) {
-  // Hanya izinkan method POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const { url } = req.body;
 
   if (!url) {
-    return res.status(400).json({ error: 'URL TikTok wajib diisi!' });
+    return res.status(400).json({ error: "URL TikTok wajib diisi!" });
   }
 
   try {
-    // 1. Ambil Token dan Cookies
-    const page = await axios.get('https://leofame.com/free-tiktok-likes');
-    const html = page.data;
-    
-    // Regex untuk mengambil token
-    const tokenMatch = html.match(/var\s+token\s*=\s*'([^']+)'/);
-    if (!tokenMatch) {
-      throw new Error('Gagal mengambil token dari leofame.');
-    }
-    const token = tokenMatch[1];
-    
-    // Ambil cookies
-    const cookies = page.headers['set-cookie']
-      .map(v => v.split(';')[0])
-      .join('; ');
 
-    // 2. Kirim Request Post
-    const response = await axios.post('https://leofame.com/free-tiktok-likes?api=1',
-      new URLSearchParams({
-        token,
-        timezone_offset: 'Asia/Makassar',
-        free_link: url
-      }).toString(),
+    // 1. ambil halaman leofame
+    const page = await axios.get(
+      "https://leofame.com/free-tiktok-likes",
       {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Origin': 'https://leofame.com',
-          'Referer': 'https://leofame.com/free-tiktok-likes',
-          'Cookie': cookies
-        }
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+        },
+        timeout: 10000,
       }
     );
 
-    // Kembalikan hasil ke frontend
+    const html = page.data;
+
+    // 2. ambil token
+    const tokenMatch =
+      html.match(/token\s*=\s*['"]([^'"]+)['"]/) ||
+      html.match(/var\s+token\s*=\s*['"]([^'"]+)['"]/);
+
+    if (!tokenMatch) {
+      return res.status(500).json({
+        error: "Token tidak ditemukan",
+      });
+    }
+
+    const token = tokenMatch[1];
+
+    // 3. ambil cookie
+    const cookies = page.headers["set-cookie"]
+      ? page.headers["set-cookie"].map((v) => v.split(";")[0]).join("; ")
+      : "";
+
+    // 4. kirim request like
+    const response = await axios.post(
+      "https://leofame.com/free-tiktok-likes?api=1",
+      new URLSearchParams({
+        token: token,
+        free_link: url,
+        timezone_offset: "-480",
+      }).toString(),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Origin: "https://leofame.com",
+          Referer: "https://leofame.com/free-tiktok-likes",
+          Cookie: cookies,
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+        },
+        timeout: 10000,
+      }
+    );
+
     return res.status(200).json(response.data);
 
   } catch (error) {
+
     console.error(error);
-    return res.status(500).json({ 
-      error: 'Terjadi kesalahan saat memproses.',
-      details: error.message 
+
+    return res.status(500).json({
+      error: "Server error",
+      message: error.message,
     });
+
   }
 }
